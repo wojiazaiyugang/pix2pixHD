@@ -198,7 +198,8 @@ class GlobalGenerator(nn.Module):
         mult = 2**n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
-        
+        my_block = nn.Conv2d(1024 + 16, 1024, kernel_size=1, stride=1, padding=0)
+        model += [my_block]
         ### upsample         
         for i in range(n_downsampling):
             mult = 2**(n_downsampling - i)
@@ -207,8 +208,15 @@ class GlobalGenerator(nn.Module):
         model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
         self.model = nn.Sequential(*model)
             
-    def forward(self, input):
-        return self.model(input)             
+    def forward(self, input, audio = None):
+        # print(f"模型中间变量 {input.size()}")
+        for i, m in enumerate(self.model):
+            input = m(input)
+            # print(f"{i} 模型中间变量 {input.size()}")
+            if i == 24:
+                # 把input和audio拼接起来
+                input = torch.cat((input, audio), 1)
+        return input
         
 # Define a resnet block
 class ResnetBlock(nn.Module):

@@ -69,7 +69,7 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         ############## Forward Pass ######################
         losses, generated = model(Variable(data['label']), Variable(data['inst']), 
-            Variable(data['image']), Variable(data['feat']), infer=save_fake)
+            Variable(data['image']), Variable(data['feat']), infer=save_fake, audio=Variable(data['audio']))
 
         # sum per device losses
         losses = [ torch.mean(x) if not isinstance(x, int) else x for x in losses ]

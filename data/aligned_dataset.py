@@ -1,4 +1,7 @@
 import os.path
+from pathlib import Path
+import torch
+import numpy as np
 from data.base_dataset import BaseDataset, get_params, get_transform, normalize
 from data.image_folder import make_dataset
 from PIL import Image
@@ -34,7 +37,9 @@ class AlignedDataset(BaseDataset):
       
     def __getitem__(self, index):        
         ### input A (label maps)
-        A_path = self.A_paths[index]              
+        A_path = self.A_paths[index]
+        audio_data = np.load(str(Path(A_path).with_suffix(".npy")))
+        # audio_data = audio_data.reshape(16, 32, 32)
         A = Image.open(A_path)        
         params = get_params(self.opt, A.size)
         if self.opt.label_nc == 0:
@@ -62,10 +67,11 @@ class AlignedDataset(BaseDataset):
                 feat_path = self.feat_paths[index]            
                 feat = Image.open(feat_path).convert('RGB')
                 norm = normalize()
-                feat_tensor = norm(transform_A(feat))                            
+                feat_tensor = norm(transform_A(feat))
+
 
         input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 
-                      'feat': feat_tensor, 'path': A_path}
+                      'feat': feat_tensor, 'path': A_path, "audio": audio_data}
 
         return input_dict
 
