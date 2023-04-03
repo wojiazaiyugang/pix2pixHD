@@ -192,7 +192,7 @@ class Pix2PixHDModel(BaseModel):
         # Only return the fake_B image if necessary to save BW
         return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_real, loss_D_fake ), None if not infer else fake_image ]
 
-    def inference(self, label, inst, image=None):
+    def inference(self, label, inst, image=None, audio = None):
         # Encode Inputs        
         image = Variable(image) if image is not None else None
         input_label, inst_map, real_image, _ = self.encode_input(Variable(label), Variable(inst), image, infer=True)
@@ -213,7 +213,7 @@ class Pix2PixHDModel(BaseModel):
             with torch.no_grad():
                 fake_image = self.netG.forward(input_concat)
         else:
-            fake_image = self.netG.forward(input_concat)
+            fake_image = self.netG.forward(input_concat, audio.cuda())
         return fake_image
 
     def sample_features(self, inst): 
