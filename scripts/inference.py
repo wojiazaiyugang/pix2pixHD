@@ -101,6 +101,6 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 if __name__ == '__main__':
     infer(Path("/workspace/pytorch-CycleGAN-and-pix2pix/liumin.mp4"),
-          Path("/workspace/pytorch-CycleGAN-and-pix2pix/audio.wav"),
+          Path("/workspace/pytorch-CycleGAN-and-pix2pix/liumin_audio.wav"),
           "liumin2_HD")
     # 2023033
