@@ -198,7 +198,7 @@ class GlobalGenerator(nn.Module):
         mult = 2**n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
-        my_block = nn.Conv2d(1024 + 16, 1024, kernel_size=1, stride=1, padding=0)
+        my_block = nn.Conv2d(1024 + 32, 1024, kernel_size=1, stride=1, padding=0)
         model += [my_block]
         ### upsample         
         for i in range(n_downsampling):
