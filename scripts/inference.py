@@ -27,6 +27,7 @@ def infer(video_file: Path, audio_file: Path, name: str):
     for d in [image_dir, face_dir, result_dir]:
         d.mkdir(parents=True, exist_ok=True)
 
+
     audio, sample_rate = librosa.load(str(audio_file), sr=16000)
     print(f"audio shape {audio.shape}")
     video = cv2.VideoCapture(str(video_file))
@@ -102,5 +103,5 @@ def infer(video_file: Path, audio_file: Path, name: str):
 if __name__ == '__main__':
     infer(Path("/workspace/pytorch-CycleGAN-and-pix2pix/liumin.mp4"),
           Path("/workspace/pytorch-CycleGAN-and-pix2pix/liumin_audio.wav"),
-          "liumin2_HD")
+          "liumin2_HD_bs8")
     # 2023033
