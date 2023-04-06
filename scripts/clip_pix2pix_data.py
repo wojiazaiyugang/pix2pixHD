@@ -16,13 +16,15 @@ from chinese_speech_pretrain import process
 if __name__ == '__main__':
     arc_face_pro_3 = None
     work_dir = Path(__file__).parent.parent.resolve()
-    output_dir = work_dir.joinpath("datasets", "liumin2_HD_no_muted_longaudio_wave2vec")
+    output_dir = work_dir.joinpath("datasets", "liumin_onevideo_conv")
     output_dir.mkdir(exist_ok=True)
     train, val, test = 0, 0, 0
     for d in ["train", "val", "test"]:
         for ab in ["train_A", "train_B"]:
             output_dir.joinpath(d, ab).mkdir(exist_ok=True, parents=True)
     for video_file in work_dir.joinpath("datasets", "original_video", "刘敏第二次录制视频").iterdir():
+        if "坐姿刘敏穿外套视频" not in str(video_file):
+            continue
         video = cv2.VideoCapture(str(video_file))
         video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         subprocess.run(f"ffmpeg -i {video_file} -vn -v error -y /workspace/HiInfer/audio.wav", shell=True, check=True)
@@ -39,7 +41,7 @@ if __name__ == '__main__':
         print(f"parts {parts}")
         frame_index = -1
         while True:
-            print(train, val, test)
+            print(video_file,train, val, test)
             ret, frame = video.read()
             if not ret:
                 break
@@ -55,14 +57,14 @@ if __name__ == '__main__':
             # 去除静音帧
             if not any([part[0] <= audio_time_second <= part[1] for part in parts]):
                 continue
-            start, end = audio_index - 20*256, audio_index + 21*256
+            start, end = audio_index - 15872 - 256, audio_index + 15872 + 256
             if start < 0 or end > len(audio):
                 continue
             sample_audio = audio[start: end]
-            # mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16 * 32)  # mel=512*64
-            mel = process(sample_audio)  # 16*32*32 = 512*32
+            mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*64
+            # mel = process(sample_audio)  # 16*32*32 = 512*32
             # print(mel.shape)
-            mel = mel.reshape(16, 32, 32)
+            mel = mel.reshape(1, 32, 32)
             # exit()
             # mel = mel.reshape(32, 32, 32)
             # mfcc = librosa.feature.mfcc(y=sample_audio, sr=sample_rate, n_mels=n_mels)

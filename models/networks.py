@@ -8,12 +8,15 @@ import numpy as np
 # Functions
 ###############################################################################
 def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+    try:
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            m.weight.data.normal_(0.0, 0.02)
+        elif classname.find('BatchNorm2d') != -1:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)
+    except AttributeError:
+        print("AttributeError先不管")
 
 def get_norm_layer(norm_type='instance'):
     if norm_type == 'batch':
@@ -180,6 +183,23 @@ class LocalEnhancer(nn.Module):
             output_prev = model_upsample(model_downsample(input_i) + output_prev)
         return output_prev
 
+
+class Conv2d(nn.Module):
+    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.conv_block = nn.Sequential(
+                            nn.Conv2d(cin, cout, kernel_size, stride, padding),
+                            nn.BatchNorm2d(cout)
+                            )
+        self.act = nn.ReLU()
+        self.residual = residual
+
+    def forward(self, x):
+        out = self.conv_block(x)
+        if self.residual:
+            out += x
+        return self.act(out)
+
 class GlobalGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, n_downsampling=3, n_blocks=9, norm_layer=nn.BatchNorm2d, 
                  padding_type='reflect'):
@@ -207,8 +227,35 @@ class GlobalGenerator(nn.Module):
                        norm_layer(int(ngf * mult / 2)), activation]
         model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
         self.model = nn.Sequential(*model)
+        # N = (W - F + 2P) / S + 1
+        # W = (N - 1) * S - 2P + F
+        self.audio_encoder = nn.Sequential(
+            Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+            Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+            # (32-1)*3-2*1+3 = 94
+            Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            # (32-1)*3-2*1+3 = 32
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+            # (32-1)*1-2*1+3 = 32
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+            # (32-1)*1-2*1+3 = 32
+            Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            # (32-1)*1-2*1+3 = 32
+            Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
+            # (32-1)*1-2*1+3 = 32
+            Conv2d(256, 512, kernel_size=3, stride=1, padding=1), #
+            # (32-1)*1-2*1+3 = 32
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            # 输出size 512*32*32
+        )
             
     def forward(self, input, audio = None):
+        audio_feature = self.audio_encoder(audio)
         # print(f"模型中间变量 {input.size()}")
         for i, m in enumerate(self.model):
             input = m(input)
