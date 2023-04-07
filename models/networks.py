@@ -218,7 +218,7 @@ class GlobalGenerator(nn.Module):
         mult = 2**n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
-        my_block = nn.Conv2d(1024 + 32, 1024, kernel_size=1, stride=1, padding=0)
+        my_block = nn.Conv2d(1024 + 512, 1024, kernel_size=1, stride=1, padding=0)
         model += [my_block]
         ### upsample         
         for i in range(n_downsampling):
@@ -230,7 +230,7 @@ class GlobalGenerator(nn.Module):
         # N = (W - F + 2P) / S + 1
         # W = (N - 1) * S - 2P + F
         self.audio_encoder = nn.Sequential(
-            Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+            Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
 
@@ -255,14 +255,14 @@ class GlobalGenerator(nn.Module):
         )
             
     def forward(self, input, audio = None):
-        audio_feature = self.audio_encoder(audio)
+        audio_feature = self.audio_encoder(audio.to(torch.float32))
         # print(f"模型中间变量 {input.size()}")
         for i, m in enumerate(self.model):
             input = m(input)
             # print(f"{i} 模型中间变量 {input.size()}")
             if i == 24:
                 # 把input和audio拼接起来
-                input = torch.cat((input, audio), 1)
+                input = torch.cat((input, audio_feature), 1)
         return input
         
 # Define a resnet block

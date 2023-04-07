@@ -53,8 +53,8 @@ def infer(video_file: Path, audio_file: Path, name: str):
         if end > len(audio):
             break
         sample_audio = audio[start: end]
-        mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*32
-        mel = mel.reshape(1, 32, 32)
+        mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16*32)  # mel=512*32
+        mel = mel.reshape(32, 32, 32)
         if not arc_face_pro_3:
             from infer import ArcFacePro3
             arc_face_pro_3 = ArcFacePro3()
@@ -102,6 +102,6 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 if __name__ == '__main__':
     infer(Path("/workspace/pix2pixHD/liumin.mp4"),
-          Path("/workspace/pytorch-CycleGAN-and-pix2pix/liumin_audio.wav"),
-          "liumin2_HD_no_muted_longaudio")
+          Path("/workspace/pix2pixHD/liumin.wav"),
+          "liumin_onevideo")
     # 2023033

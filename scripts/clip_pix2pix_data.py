@@ -16,7 +16,7 @@ from chinese_speech_pretrain import process
 if __name__ == '__main__':
     arc_face_pro_3 = None
     work_dir = Path(__file__).parent.parent.resolve()
-    output_dir = work_dir.joinpath("datasets", "liumin_onevideo_conv")
+    output_dir = work_dir.joinpath("datasets", "liumin_onevideo_conv_wav2vec")
     output_dir.mkdir(exist_ok=True)
     train, val, test = 0, 0, 0
     for d in ["train", "val", "test"]:
@@ -57,16 +57,16 @@ if __name__ == '__main__':
             # 去除静音帧
             if not any([part[0] <= audio_time_second <= part[1] for part in parts]):
                 continue
-            start, end = audio_index - 15872 - 256, audio_index + 15872 + 256
+            start, end = audio_index - 20*256, audio_index + 21*256
             if start < 0 or end > len(audio):
                 continue
             sample_audio = audio[start: end]
-            mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*64
-            # mel = process(sample_audio)  # 16*32*32 = 512*32
+            # mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*64
+            mel = process(sample_audio)  # 16*32*32 = 512*32
             # print(mel.shape)
-            mel = mel.reshape(1, 32, 32)
+            # mel = mel.reshape(1, 32, 32)
             # exit()
-            # mel = mel.reshape(32, 32, 32)
+            mel = mel.reshape(16, 32, 32)
             # mfcc = librosa.feature.mfcc(y=sample_audio, sr=sample_rate, n_mels=n_mels)
             # mfcc归一化
             # mfcc = (mfcc - mfcc.min()) / (mfcc.max() - mfcc.min())
