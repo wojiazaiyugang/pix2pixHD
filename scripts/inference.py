@@ -13,6 +13,8 @@ import cv2
 import librosa
 import numpy as np
 
+from chinese_speech_pretrain import process
+
 arc_face_pro_3 = None
 
 
@@ -47,14 +49,18 @@ def infer(video_file: Path, audio_file: Path, name: str):
         if frame_index > 30 * 25:
             break
         audio_index = frame_index * 400
-        start, end = audio_index - 15872 - 256, audio_index + 15872 + 256
+        # start, end = audio_index - 15872 - 256, audio_index + 15872 + 256 # mel
+        start, end = audio_index - 20 * 256, audio_index + 21 * 256 # wav2vec
         if start < 0:
             continue
         if end > len(audio):
             break
         sample_audio = audio[start: end]
-        mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16*32)  # mel=512*32
-        mel = mel.reshape(32, 32, 32)
+        # mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*32
+        mel = process(sample_audio)  # 16*32*32 = 512*32
+
+        mel = mel.reshape(16, 32, 32) # wav2vec
+        # mel = mel.reshape(1, 32, 32) # mel
         if not arc_face_pro_3:
             from infer import ArcFacePro3
             arc_face_pro_3 = ArcFacePro3()
@@ -103,5 +109,5 @@ def infer(video_file: Path, audio_file: Path, name: str):
 if __name__ == '__main__':
     infer(Path("/workspace/pix2pixHD/liumin.mp4"),
           Path("/workspace/pix2pixHD/liumin.wav"),
-          "liumin_onevideo")
+          "liumin_onevideo_conv_wav2vec")
     # 2023033
