@@ -108,6 +108,6 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 if __name__ == '__main__':
     infer(Path("/workspace/pix2pixHD/liumin.mp4"),
-          Path("/workspace/pix2pixHD/liumin.wav"),
+          Path("/workspace/pix2pixHD/liumin2.wav"),
           "liumin_onevideo_conv_wav2vec")
     # 2023033

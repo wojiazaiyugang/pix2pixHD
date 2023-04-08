@@ -16,7 +16,7 @@ from chinese_speech_pretrain import process
 if __name__ == '__main__':
     arc_face_pro_3 = None
     work_dir = Path(__file__).parent.parent.resolve()
-    output_dir = work_dir.joinpath("datasets", "liumin_onevideo_conv_wav2vec")
+    output_dir = work_dir.joinpath("datasets", "pad_resnet")
     output_dir.mkdir(exist_ok=True)
     train, val, test = 0, 0, 0
     for d in ["train", "val", "test"]:
@@ -79,6 +79,9 @@ if __name__ == '__main__':
             if len(faces) != 1:
                 continue
             face = faces[0]
+            face.bbox.ltx = face.bbox.ltx - 10
+            face.bbox.rbx = face.bbox.rbx + 10
+            face.bbox.rby = face.bbox.rby + 10
             face_frame_label = frame[face.bbox.lty:face.bbox.rby, face.bbox.ltx: face.bbox.rbx, :]
             face_frame_train = deepcopy(face_frame_label)
             face_frame_train[face_frame_train.shape[0] // 2:, :, :] = 0
