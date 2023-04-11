@@ -12,9 +12,7 @@ from pathlib import Path
 import cv2
 import librosa
 import numpy as np
-
-from chinese_speech_pretrain import process
-
+from audio import melspectrogram
 arc_face_pro_3 = None
 
 
@@ -30,7 +28,8 @@ def infer(video_file: Path, audio_file: Path, name: str):
         d.mkdir(parents=True, exist_ok=True)
 
 
-    audio, sample_rate = librosa.load(str(audio_file), sr=16000)
+    audio, sample_rate = librosa.core.load(audio_file, sr=16000)
+    orig_mel = melspectrogram(audio).T
     print(f"audio shape {audio.shape}")
     video = cv2.VideoCapture(str(video_file))
     video_height, video_width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -48,19 +47,16 @@ def infer(video_file: Path, audio_file: Path, name: str):
         print(frame_index)
         if frame_index > 30 * 25:
             break
-        audio_index = frame_index * 400
-        # start, end = audio_index - 15872 - 256, audio_index + 15872 + 256 # mel
-        start, end = audio_index - 20 * 256, audio_index + 21 * 256 # wav2vec
+        audio_index = int(80. * (frame_index / float(25)))
+        print(audio_index)
+        start, end = audio_index - 40, audio_index + 40
         if start < 0:
             continue
-        if end > len(audio):
+        if end > len(orig_mel):
             break
-        sample_audio = audio[start: end]
-        # mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*32
-        mel = process(sample_audio)  # 16*32*32 = 512*32
-
-        mel = mel.reshape(16, 32, 32) # wav2vec
-        # mel = mel.reshape(1, 32, 32) # mel
+        mel = orig_mel[start: end].T
+        print(mel.shape)
+        mel = mel.reshape(1, 80, 80)
         if not arc_face_pro_3:
             from infer import ArcFacePro3
             arc_face_pro_3 = ArcFacePro3()
@@ -108,6 +104,6 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 if __name__ == '__main__':
     infer(Path("/workspace/pix2pixHD/liumin.mp4"),
-          Path("/workspace/pix2pixHD/liumin2.wav"),
-          "liumin_onevideo_conv_wav2vec")
+          Path("/workspace/pix2pixHD/liumin.wav"),
+          "liumin_wav2lip")
     # 2023033
