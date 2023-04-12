@@ -233,29 +233,26 @@ class GlobalGenerator(nn.Module):
         # N = (W - F + 2P) / S + 1
         # W = (N - 1) * S - 2P + F
         self.audio_encoder = nn.Sequential(
-            Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+            Conv2d(1, 32, kernel_size=5, stride=1, padding=0),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
 
-            Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            Conv2d(32, 64, kernel_size=3, stride=1, padding=0),
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
-            # (32-1)*3-2*1+3 = 94
-            Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            # (32-1)*3-2*1+3 = 32
+
+            Conv2d(64, 128, kernel_size=3, stride=1, padding=0),
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
-            # (32-1)*1-2*1+3 = 32
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
-            # (32-1)*1-2*1+3 = 32
-            Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            # (32-1)*1-2*1+3 = 32
+
+            Conv2d(128, 256, kernel_size=3, stride=1, padding=0),
             Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
-            # (32-1)*1-2*1+3 = 32
-            Conv2d(256, 512, kernel_size=3, stride=1, padding=1), #
-            # (32-1)*1-2*1+3 = 32
-            Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-            # 输出size 512*32*32
-        )
+
+            Conv2d(256, 512, kernel_size=3, stride=2, padding=0),
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=0),
+            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
             
     def forward(self, input, audio = None):
         audio_feature = self.audio_encoder(audio.to(torch.float32))

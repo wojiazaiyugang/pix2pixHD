@@ -10,26 +10,25 @@ import librosa
 import numpy as np
 import webrtcvad
 
+from audio import melspectrogram
 from clip_wave2lip_data import vad_collector, frame_generator, read_wave
-from chinese_speech_pretrain import process
 
 if __name__ == '__main__':
     arc_face_pro_3 = None
     work_dir = Path(__file__).parent.parent.resolve()
-    output_dir = work_dir.joinpath("datasets", "pad_resnet")
+    output_dir = work_dir.joinpath("datasets", "liumin_wav2lip_few")
     output_dir.mkdir(exist_ok=True)
     train, val, test = 0, 0, 0
     for d in ["train", "val", "test"]:
         for ab in ["train_A", "train_B"]:
             output_dir.joinpath(d, ab).mkdir(exist_ok=True, parents=True)
     for video_file in work_dir.joinpath("datasets", "original_video", "刘敏第二次录制视频").iterdir():
-        if "坐姿刘敏穿外套视频" not in str(video_file):
-            continue
         video = cv2.VideoCapture(str(video_file))
         video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         subprocess.run(f"ffmpeg -i {video_file} -vn -v error -y /workspace/HiInfer/audio.wav", shell=True, check=True)
         audio_file = Path("/workspace/HiInfer/audio.wav")
-        audio, sample_rate = librosa.load(str(audio_file), sr=16000)
+        audio, sample_rate = librosa.core.load(audio_file, sr=16000)
+        orig_mel = melspectrogram(audio).T
 
         temp_audio_file = Path(tempfile.mkstemp(suffix=".wav")[1])
         subprocess.run(f"""ffmpeg -i "{video_file}" -vn -ar 16000 -v error -ac 1 -y "{temp_audio_file}" """, shell=True)
@@ -52,21 +51,23 @@ if __name__ == '__main__':
 
             # 前后各个
             # 当前帧frame_index
-            audio_index = frame_index * 400
-            audio_time_second = audio_index / sample_rate
+            audio_index = int(80. * (frame_index / float(25)))
+            audio_time_second = int(frame_index / 25)
             # 去除静音帧
             if not any([part[0] <= audio_time_second <= part[1] for part in parts]):
                 continue
-            start, end = audio_index - 20*256, audio_index + 21*256
-            if start < 0 or end > len(audio):
+            start, end = audio_index - 40, audio_index + 40
+            if start < 0 or end > len(orig_mel):
                 continue
-            sample_audio = audio[start: end]
+            mel = orig_mel[start: end].T
             # mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16)  # mel=512*64
-            mel = process(sample_audio)  # 16*32*32 = 512*32
+            # mel = process(sample_audio)  # 16*32*32 = 512*32
             # print(mel.shape)
+
             # mel = mel.reshape(1, 32, 32)
+            mel = mel.reshape(1, 80, 80)
             # exit()
-            mel = mel.reshape(16, 32, 32)
+            # mel = mel.reshape(16, 32, 32)
             # mfcc = librosa.feature.mfcc(y=sample_audio, sr=sample_rate, n_mels=n_mels)
             # mfcc归一化
             # mfcc = (mfcc - mfcc.min()) / (mfcc.max() - mfcc.min())
@@ -89,8 +90,8 @@ if __name__ == '__main__':
             v = random.random()
             if v < 0.8:
                 train += 1
-                if train > 14000:
-                    break
+                # if train > 20000:
+                #     break
                 output_a_file = output_dir.joinpath("train", "train_A").joinpath(f"{train}.jpg")
                 output_b_file = output_dir.joinpath("train", "train_B").joinpath(f"{train}.jpg")
             elif 0.8 <= v < 0.9:
