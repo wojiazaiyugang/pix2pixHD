@@ -298,7 +298,7 @@ class Pix2PixHDModel(BaseModel):
 
 class InferenceModel(Pix2PixHDModel):
     def forward(self, inp):
-        label, inst = inp
-        return self.inference(label, inst)
+        label, inst, audio = inp
+        return self.inference(label, inst, audio=audio)
 
         
