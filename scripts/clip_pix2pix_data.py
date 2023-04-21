@@ -16,13 +16,14 @@ from clip_wave2lip_data import vad_collector, frame_generator, read_wave
 if __name__ == '__main__':
     arc_face_pro_3 = None
     work_dir = Path(__file__).parent.parent.resolve()
-    output_dir = work_dir.joinpath("datasets", "liumin_wav2lip_few")
+    output_dir = work_dir.joinpath("datasets", "liumin+qijian")
     output_dir.mkdir(exist_ok=True)
     train, val, test = 0, 0, 0
     for d in ["train", "val", "test"]:
         for ab in ["train_A", "train_B"]:
             output_dir.joinpath(d, ab).mkdir(exist_ok=True, parents=True)
-    for video_file in work_dir.joinpath("datasets", "original_video", "刘敏第二次录制视频").iterdir():
+    video_files = list(work_dir.joinpath("datasets", "original_video", "刘敏第二次录制视频").iterdir()) + list(work_dir.joinpath("datasets", "original_video", "祁健视频").iterdir())
+    for video_file in video_files:
         video = cv2.VideoCapture(str(video_file))
         video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         subprocess.run(f"ffmpeg -i {video_file} -vn -v error -y /workspace/HiInfer/audio.wav", shell=True, check=True)

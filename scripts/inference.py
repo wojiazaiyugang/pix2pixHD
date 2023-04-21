@@ -16,7 +16,7 @@ from audio import melspectrogram
 arc_face_pro_3 = None
 
 
-def infer(video_file: Path, audio_file: Path, name: str):
+def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     global arc_face_pro_3
     project_dir = Path(__file__).parent.parent.resolve()
     work_dir = project_dir.joinpath("inference")
@@ -35,7 +35,7 @@ def infer(video_file: Path, audio_file: Path, name: str):
     video_height, video_width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
 
     frame_index = -1
-    output_dir = project_dir.joinpath("results", name, "test_latest", "images")
+    output_dir = project_dir.joinpath("results", name, f"test_{epoch}", "images")
     shutil.rmtree(output_dir, ignore_errors=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     image_face_bbox = {}  # {image_index: bbox}
@@ -48,14 +48,12 @@ def infer(video_file: Path, audio_file: Path, name: str):
         if frame_index > 30 * 25:
             break
         audio_index = int(80. * (frame_index / float(25)))
-        print(audio_index)
         start, end = audio_index - 40, audio_index + 40
         if start < 0:
             continue
         if end > len(orig_mel):
             break
         mel = orig_mel[start: end].T
-        print(mel.shape)
         mel = mel.reshape(1, 80, 80)
         if not arc_face_pro_3:
             from infer import ArcFacePro3
@@ -78,6 +76,7 @@ def infer(video_file: Path, audio_file: Path, name: str):
                f"""--dataroot {face_dir.parent} """
                f"""--label_nc 0 """
                f"""--no_instance """
+               f"""--which_epoch {epoch} """
                f"""--loadSize 512 """
                f"""--resize_or_crop resize_and_crop """
                f"""--how_many {frame_index} """)
@@ -103,7 +102,8 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 
 if __name__ == '__main__':
-    infer(Path("/workspace/pix2pixHD/liumin.mp4"),
+    infer(Path("/workspace/pix2pixHD/qijian.mp4"),
           Path("/workspace/pix2pixHD/liumin.wav"),
-          "liumin_wav2lip")
+          "liumin+qijian",
+          epoch="latest")
     # 2023033
