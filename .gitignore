@@ -42,5 +42,7 @@ test/data/legacy_serialized.pt
 /datasets/
 /.idea/
 /inference/
-**/*.mp4
 **/*.wav
+**/*.mp4
+**/*.MP3
+/ArcFacePro64.dat
