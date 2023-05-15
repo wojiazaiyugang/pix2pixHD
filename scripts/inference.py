@@ -13,9 +13,14 @@ import cv2
 import librosa
 import numpy as np
 from audio import melspectrogram
+from typer import Typer
+
+
+app = Typer()
 arc_face_pro_3 = None
 
 
+@app.command()
 def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     global arc_face_pro_3
     project_dir = Path(__file__).parent.parent.resolve()
@@ -26,7 +31,6 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     result_dir = work_dir.joinpath("result")
     for d in [image_dir, face_dir, result_dir]:
         d.mkdir(parents=True, exist_ok=True)
-
 
     audio, sample_rate = librosa.core.load(audio_file, sr=16000)
     orig_mel = melspectrogram(audio).T
@@ -102,8 +106,9 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
 
 
 if __name__ == '__main__':
-    infer(Path("/workspace/pix2pixHD/qijian.mp4"),
-          Path("/workspace/pix2pixHD/liumin.wav"),
-          "liumin+qijian",
-          epoch="latest")
+    app()
+    # infer(Path("/workspace/pix2pixHD/liumin.mp4"),
+    #       Path("/workspace/pix2pixHD/2.MP3"),
+    #       "pretrain_liumin",
+    #       epoch="latest")
     # 2023033
