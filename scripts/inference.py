@@ -99,6 +99,10 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), image)
         else:
             black = np.zeros((video_height, video_width, 3), dtype=np.uint8)
+            # generate a green image
+            black[:, :, 0] = 112
+            black[:, :, 1] = 222
+            black[:, :, 2] = 119
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), black)
     subprocess.run(
         f"""ffmpeg -r 25 -f image2 -i {result_dir}/%05d.jpg -i {audio_file} -shortest -y result.mp4""",
