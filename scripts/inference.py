@@ -15,6 +15,8 @@ import numpy as np
 from audio import melspectrogram
 from typer import Typer
 
+from face_parsing import init_parser, swap_regions
+
 
 app = Typer()
 arc_face_pro_3 = None
@@ -88,6 +90,7 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
         command,
         cwd=project_dir, shell=True, check=True)
     print(f"{frame_index}， 耗时 {time.time() - s:.2f} 秒")
+    seg_net = init_parser(str(project_dir.joinpath("checkpoints", "face_segmentation.pth")))
     for file_index in range(frame_index):
         if file_index in image_face_bbox:
             bbox = image_face_bbox[file_index]
@@ -95,7 +98,8 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
             output_face = cv2.imread(str(output_dir.joinpath(f"{file_index:0>5}_synthesized_image.jpg")))
             output_face = cv2.resize(output_face, (bbox.rbx - bbox.ltx, bbox.rby - bbox.lty))
             # print(bbox, (bbox.rbx - bbox.ltx, bbox.rby - bbox.lty), output_face.shape, image.shape)
-            image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx, :] = output_face
+            # output_face = swap_regions(image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx], output_face, seg_net)
+            image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx] = output_face
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), image)
         else:
             black = np.zeros((video_height, video_width, 3), dtype=np.uint8)
