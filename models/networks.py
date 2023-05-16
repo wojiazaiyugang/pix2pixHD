@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 import functools
 from torch.autograd import Variable
 import numpy as np
@@ -126,6 +127,27 @@ class VGGLoss(nn.Module):
             loss += self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach())        
         return loss
 
+class SyncLoss(nn.Module):
+    def __init__(self, gpu_ids):
+        super(SyncLoss, self).__init__()        
+        self.syncnet = SyncNet_color().cuda()
+        self.logloss = nn.BCELoss()     
+        for p in self.syncnet.parameters():
+            p.requires_grad = False
+
+    def cosine_loss(self, a, v, y):
+        d = nn.functional.cosine_similarity(a, v)
+        loss = self.logloss(d.unsqueeze(1), y)
+        return loss
+
+    def forward(self, mel, g):              
+        g = g[:, :, g.size(3)//2:, :]
+        # g = torch.cat([g[:, :, i] for i in range(5)], dim=1)
+        # B, 3 * T, H//2, W
+        a, v = self.syncnet(mel, g)
+        y = torch.ones(g.size(0), 1).float().cuda()
+        return self.cosine_loss(a, v, y)
+
 ##############################################################################
 # Generator
 ##############################################################################
@@ -218,11 +240,17 @@ class GlobalGenerator(nn.Module):
         mult = 2**n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, activation=activation, norm_layer=norm_layer)]
+<<<<<<< HEAD
+        my_block2 = ResnetBlock(1024 + 512, padding_type=padding_type, activation=activation, norm_layer=norm_layer)
+        my_block1 = nn.Conv2d(1024 + 512, 1024, kernel_size=1, stride=1, padding=0)
+        model += [my_block2, my_block2, my_block2, my_block1]
+=======
 
         # 1536 32 32 -》 1024 32 32
         my_block2 = ResnetBlock(1024 + 512, padding_type=padding_type, activation=activation, norm_layer=norm_layer)
         my_block1 = nn.Conv2d(1024 + 512, 1024, kernel_size=1, stride=1, padding=0)
         model += [my_block1]
+>>>>>>> 4ec6d052b46b5d5cec310be5d5577cc44f20b64e
         ### upsample         
         for i in range(n_downsampling):
             mult = 2**(n_downsampling - i)
@@ -230,8 +258,6 @@ class GlobalGenerator(nn.Module):
                        norm_layer(int(ngf * mult / 2)), activation]
         model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
         self.model = nn.Sequential(*model)
-        # N = (W - F + 2P) / S + 1
-        # W = (N - 1) * S - 2P + F
         self.audio_encoder = nn.Sequential(
             Conv2d(1, 32, kernel_size=5, stride=1, padding=0),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
@@ -253,7 +279,11 @@ class GlobalGenerator(nn.Module):
 
             Conv2d(512, 512, kernel_size=3, stride=1, padding=0),
             Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
+<<<<<<< HEAD
+        
+=======
             
+>>>>>>> 4ec6d052b46b5d5cec310be5d5577cc44f20b64e
     def forward(self, input, audio = None):
         audio_feature = self.audio_encoder(audio.to(torch.float32))
         # print(f"模型中间变量 {input.size()}")
@@ -469,3 +499,71 @@ class Vgg19(torch.nn.Module):
         h_relu5 = self.slice5(h_relu4)                
         out = [h_relu1, h_relu2, h_relu3, h_relu4, h_relu5]
         return out
+
+
+class SyncNet_color(nn.Module):
+    def __init__(self, requires_grad=False):
+        super(SyncNet_color, self).__init__()
+        self.face_encoder = nn.Sequential(
+            Conv2d(15, 32, kernel_size=(7, 7), stride=1, padding=3),
+
+            Conv2d(32, 64, kernel_size=5, stride=(1, 2), padding=1),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            Conv2d(512, 512, kernel_size=3, stride=1, padding=0),
+            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
+
+        self.audio_encoder = nn.Sequential(
+            Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+            Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(32, 64, kernel_size=3, stride=(3, 1), padding=1),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(64, 128, kernel_size=3, stride=3, padding=1),
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(128, 256, kernel_size=3, stride=(3, 2), padding=1),
+            Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
+            Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
+
+            Conv2d(256, 512, kernel_size=3, stride=1, padding=0),
+            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
+        
+        checkpoint = torch.load('/root/pix2pixHD/checkpoints/lipsync_expert.pth')
+        self.load_state_dict(checkpoint["state_dict"])
+        
+        if not requires_grad:
+            for param in self.parameters():
+                param.requires_grad = False
+
+    def forward(self, audio_sequences, face_sequences): # audio_sequences := (B, dim, T)
+        face_embedding = self.face_encoder(face_sequences.to(torch.float32))
+        audio_embedding = self.audio_encoder(audio_sequences.to(torch.float32))
+
+        audio_embedding = audio_embedding.view(audio_embedding.size(0), -1)
+        face_embedding = face_embedding.view(face_embedding.size(0), -1)
+
+        audio_embedding = F.normalize(audio_embedding, p=2, dim=1)
+        face_embedding = F.normalize(face_embedding, p=2, dim=1)
+
+
+        return audio_embedding, face_embedding
