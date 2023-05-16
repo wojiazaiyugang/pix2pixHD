@@ -68,7 +68,7 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
         if len(faces) == 0:
             raise Exception(f"还没处理")
         face = faces[0]
-        face_frame = frame[face.bbox.lty:face.bbox.rby, face.bbox.ltx: face.bbox.rbx, :]
+        face_frame = frame[face.bbox.lty:face.bbox.rby, face.bbox.ltx: face.bbox.rbx, :].copy()
         face_frame[face_frame.shape[0] // 2:, :, :] = 0
         output_face = face_dir.joinpath(f"{frame_index:0>5}.jpg")
         cv2.imwrite(str(output_face), face_frame)
@@ -98,7 +98,7 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
             output_face = cv2.imread(str(output_dir.joinpath(f"{file_index:0>5}_synthesized_image.jpg")))
             output_face = cv2.resize(output_face, (bbox.rbx - bbox.ltx, bbox.rby - bbox.lty))
             # print(bbox, (bbox.rbx - bbox.ltx, bbox.rby - bbox.lty), output_face.shape, image.shape)
-            # output_face = swap_regions(image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx], output_face, seg_net)
+            output_face = swap_regions(image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx], output_face, seg_net)
             image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx] = output_face
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), image)
         else:
