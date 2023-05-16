@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import os
 from torch.autograd import Variable
+import torch.nn.functional as F
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
@@ -11,9 +12,9 @@ class Pix2PixHDModel(BaseModel):
         return 'Pix2PixHDModel'
     
     def init_loss_filter(self, use_gan_feat_loss, use_vgg_loss):
-        flags = (True, use_gan_feat_loss, use_vgg_loss, True, True)
-        def loss_filter(g_gan, g_gan_feat, g_vgg, d_real, d_fake):
-            return [l for (l,f) in zip((g_gan,g_gan_feat,g_vgg,d_real,d_fake),flags) if f]
+        flags = (True, use_gan_feat_loss, use_vgg_loss, True, True, True)
+        def loss_filter(g_gan, g_gan_feat, g_vgg, d_sync, d_real, d_fake):
+            return [l for (l,f) in zip((g_gan,g_gan_feat,g_vgg,d_sync,d_real,d_fake),flags) if f]
         return loss_filter
     
     def initialize(self, opt):
@@ -75,10 +76,13 @@ class Pix2PixHDModel(BaseModel):
             self.criterionFeat = torch.nn.L1Loss()
             if not opt.no_vgg_loss:             
                 self.criterionVGG = networks.VGGLoss(self.gpu_ids)
+
+            if not opt.no_sync_loss:             
+                self.criterionSync = networks.SyncLoss(self.gpu_ids)
                 
         
             # Names so we can breakout loss
-            self.loss_names = self.loss_filter('G_GAN','G_GAN_Feat','G_VGG','D_real', 'D_fake')
+            self.loss_names = self.loss_filter('G_GAN','G_GAN_Feat','G_VGG', 'D_Sync', 'D_real', 'D_fake')
 
             # initialize optimizers
             # optimizer G
@@ -108,7 +112,7 @@ class Pix2PixHDModel(BaseModel):
             params = list(self.netD.parameters())    
             self.optimizer_D = torch.optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
 
-    def encode_input(self, label_map, inst_map=None, real_image=None, feat_map=None, infer=False):             
+    def encode_input(self, label_map, inst_map=None, real_image=None, real_image_list=None, feat_map=None, infer=False):             
         if self.opt.label_nc == 0:
             input_label = label_map.data.cuda()
         else:
@@ -131,6 +135,13 @@ class Pix2PixHDModel(BaseModel):
         if real_image is not None:
             real_image = Variable(real_image.data.cuda())
 
+        if real_image_list is not None:
+            # 缩放到目标大小
+            target_size = (96, 96)
+            real_image_list = F.interpolate(real_image_list, size=target_size, mode='bilinear', align_corners=False)
+            # 将real_image赋值给Variable
+            real_image_list = Variable(real_image_list.data.cuda())
+            
         # instance map for feature encoding
         if self.use_features:
             # get precomputed feature maps
@@ -139,7 +150,7 @@ class Pix2PixHDModel(BaseModel):
             if self.opt.label_feat:
                 inst_map = label_map.cuda()
 
-        return input_label, inst_map, real_image, feat_map
+        return input_label, inst_map, real_image, real_image_list, feat_map
 
     def discriminate(self, input_label, test_image, use_pool=False):
         input_concat = torch.cat((input_label, test_image.detach()), dim=1)
@@ -149,9 +160,9 @@ class Pix2PixHDModel(BaseModel):
         else:
             return self.netD.forward(input_concat)
 
-    def forward(self, label, inst, image, feat, infer=False, audio = None):
+    def forward(self, label, inst, image, imagelist, feat, infer=False, audio = None):
         # Encode Inputs
-        input_label, inst_map, real_image, feat_map = self.encode_input(label, inst, image, feat)  
+        input_label, inst_map, real_image, real_image_list, feat_map = self.encode_input(label, inst, image, imagelist, feat)  
 
         # Fake Generation
         if self.use_features:
@@ -188,14 +199,24 @@ class Pix2PixHDModel(BaseModel):
         loss_G_VGG = 0
         if not self.opt.no_vgg_loss:
             loss_G_VGG = self.criterionVGG(fake_image, real_image) * self.opt.lambda_feat
+
+        # Sync feature matching loss
+        loss_D_Sync = 0
+        if not self.opt.no_sync_loss:
+            audio_wav2lip = audio[:,:,:,32:48]
+            # 缩放到目标大小
+            target_size = (96, 96)
+            fake_image_test = F.interpolate(real_image, size=target_size, mode='bilinear', align_corners=False)
+            real_image_list[:,6:9,:,:] = fake_image_test
+            loss_D_Sync = self.criterionSync(audio_wav2lip, real_image_list)
         
         # Only return the fake_B image if necessary to save BW
-        return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_real, loss_D_fake ), None if not infer else fake_image ]
+        return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_Sync, loss_D_real, loss_D_fake ), None if not infer else fake_image ]
 
     def inference(self, label, inst, image=None, audio = None):
         # Encode Inputs        
         image = Variable(image) if image is not None else None
-        input_label, inst_map, real_image, _ = self.encode_input(Variable(label), Variable(inst), image, infer=True)
+        input_label, inst_map, real_image, _, _ = self.encode_input(Variable(label), Variable(inst), image, infer=True)
 
         # Fake Generation
         if self.use_features:

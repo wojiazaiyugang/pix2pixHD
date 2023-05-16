@@ -7,6 +7,7 @@
 import torch.utils.data as data
 from PIL import Image
 import os
+import re
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -17,13 +18,17 @@ IMG_EXTENSIONS = [
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
+def natural_sort_key(s):
+    s = os.path.basename(s).split(".")[0]
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(r'(\d+)', s)]
 
 def make_dataset(dir):
     images = []
     assert os.path.isdir(dir), '%s is not a valid directory' % dir
 
-    for root, _, fnames in sorted(os.walk(dir)):
-        for fname in fnames:
+    for root, _, fnames in os.walk(dir):
+        for fname in sorted(fnames, key=natural_sort_key):
             if is_image_file(fname):
                 path = os.path.join(root, fname)
                 images.append(path)
