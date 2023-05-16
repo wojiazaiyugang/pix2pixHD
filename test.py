@@ -41,13 +41,15 @@ for i, data in enumerate(dataset):
     if opt.data_type == 16:
         data['label'] = data['label'].half()
         data['inst']  = data['inst'].half()
+        data['audio'] = data['audio'].half()
     elif opt.data_type == 8:
         data['label'] = data['label'].uint8()
         data['inst']  = data['inst'].uint8()
+        data['audio'] = data['audio'].uint8()
     if opt.export_onnx:
         print ("Exporting to ONNX: ", opt.export_onnx)
         assert opt.export_onnx.endswith("onnx"), "Export model file should end with .onnx"
-        torch.onnx.export(model, [data['label'], data['inst']],
+        torch.onnx.export(model, [data['label'], data['inst'], data['audio']],
                           opt.export_onnx, verbose=True)
         exit(0)
     minibatch = 1 

@@ -12,11 +12,16 @@ from pathlib import Path
 import cv2
 import librosa
 import numpy as np
+from audio import melspectrogram
+from typer import Typer
 
+
+app = Typer()
 arc_face_pro_3 = None
 
 
-def infer(video_file: Path, audio_file: Path, name: str):
+@app.command()
+def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     global arc_face_pro_3
     project_dir = Path(__file__).parent.parent.resolve()
     work_dir = project_dir.joinpath("inference")
@@ -27,14 +32,14 @@ def infer(video_file: Path, audio_file: Path, name: str):
     for d in [image_dir, face_dir, result_dir]:
         d.mkdir(parents=True, exist_ok=True)
 
-
-    audio, sample_rate = librosa.load(str(audio_file), sr=16000)
+    audio, sample_rate = librosa.core.load(audio_file, sr=16000)
+    orig_mel = melspectrogram(audio).T
     print(f"audio shape {audio.shape}")
     video = cv2.VideoCapture(str(video_file))
     video_height, video_width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
 
     frame_index = -1
-    output_dir = project_dir.joinpath("results", name, "test_latest", "images")
+    output_dir = project_dir.joinpath("results", name, f"test_{epoch}", "images")
     shutil.rmtree(output_dir, ignore_errors=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     image_face_bbox = {}  # {image_index: bbox}
@@ -46,15 +51,14 @@ def infer(video_file: Path, audio_file: Path, name: str):
         print(frame_index)
         if frame_index > 30 * 25:
             break
-        audio_index = frame_index * 400
-        start, end = audio_index - 15872 - 256, audio_index + 15872 + 256
+        audio_index = int(80. * (frame_index / float(25)))
+        start, end = audio_index - 40, audio_index + 40
         if start < 0:
             continue
-        if end > len(audio):
+        if end > len(orig_mel):
             break
-        sample_audio = audio[start: end]
-        mel = librosa.feature.melspectrogram(y=sample_audio, sr=sample_rate, S=None, n_mels=16*32)  # mel=512*32
-        mel = mel.reshape(32, 32, 32)
+        mel = orig_mel[start: end].T
+        mel = mel.reshape(1, 80, 80)
         if not arc_face_pro_3:
             from infer import ArcFacePro3
             arc_face_pro_3 = ArcFacePro3()
@@ -76,6 +80,7 @@ def infer(video_file: Path, audio_file: Path, name: str):
                f"""--dataroot {face_dir.parent} """
                f"""--label_nc 0 """
                f"""--no_instance """
+               f"""--which_epoch {epoch} """
                f"""--loadSize 512 """
                f"""--resize_or_crop resize_and_crop """
                f"""--how_many {frame_index} """)
@@ -94,6 +99,10 @@ def infer(video_file: Path, audio_file: Path, name: str):
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), image)
         else:
             black = np.zeros((video_height, video_width, 3), dtype=np.uint8)
+            # generate a green image
+            black[:, :, 0] = 112
+            black[:, :, 1] = 222
+            black[:, :, 2] = 119
             cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), black)
     subprocess.run(
         f"""ffmpeg -r 25 -f image2 -i {result_dir}/%05d.jpg -i {audio_file} -shortest -y result.mp4""",
@@ -101,7 +110,9 @@ def infer(video_file: Path, audio_file: Path, name: str):
 
 
 if __name__ == '__main__':
-    infer(Path("/workspace/pix2pixHD/liumin.mp4"),
-          Path("/workspace/pix2pixHD/liumin.wav"),
-          "liumin_onevideo")
+    app()
+    # infer(Path("/workspace/pix2pixHD/liumin.mp4"),
+    #       Path("/workspace/pix2pixHD/2.MP3"),
+    #       "pretrain_liumin",
+    #       epoch="latest")
     # 2023033
