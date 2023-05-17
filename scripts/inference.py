@@ -17,7 +17,6 @@ from typer import Typer
 
 from face_parsing import init_parser, swap_regions
 
-
 app = Typer()
 arc_face_pro_3 = None
 
@@ -38,9 +37,11 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     orig_mel = melspectrogram(audio).T
     print(f"audio shape {audio.shape}")
     video = cv2.VideoCapture(str(video_file))
+    fps = int(video.get(cv2.CAP_PROP_FPS))
     video_height, video_width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
 
     frame_index = -1
+    write_index = 0  # 写图片的index ffmpeg的索引要从0开始
     output_dir = project_dir.joinpath("results", name, f"test_{epoch}", "images")
     shutil.rmtree(output_dir, ignore_errors=True)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -51,8 +52,8 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
             break
         frame_index += 1
         print(frame_index)
-        if frame_index > 30 * 25:
-            break
+        # if frame_index > 30 * 25:
+        #     break
         audio_index = int(80. * (frame_index / float(25)))
         start, end = audio_index - 40, audio_index + 40
         if start < 0:
@@ -100,17 +101,21 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
             # print(bbox, (bbox.rbx - bbox.ltx, bbox.rby - bbox.lty), output_face.shape, image.shape)
             output_face = swap_regions(image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx], output_face, seg_net)
             image[bbox.lty:bbox.rby, bbox.ltx: bbox.rbx] = output_face
-            cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), image)
+            cv2.imwrite(str(result_dir.joinpath(f"{write_index:0>5}.jpg")), image)
+            write_index += 1
         else:
-            black = np.zeros((video_height, video_width, 3), dtype=np.uint8)
+            pass
+            # black = np.zeros((video_height, video_width, 3), dtype=np.uint8)
             # generate a green image
-            black[:, :, 0] = 112
-            black[:, :, 1] = 222
-            black[:, :, 2] = 119
-            cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), black)
-    subprocess.run(
-        f"""ffmpeg -r 25 -f image2 -i {result_dir}/%05d.jpg -i {audio_file} -shortest -y result.mp4""",
-        cwd=project_dir, shell=True, check=True)
+            # black[:, :, 0] = 112
+            # black[:, :, 1] = 222
+            # black[:, :, 2] = 119
+            # cv2.imwrite(str(result_dir.joinpath(f"{file_index:0>5}.jpg")), black)
+    # frame_index - write_index就是前面没有画面对应的音频长度，截掉音频从而对对齐
+    subprocess.run(f"""ffmpeg -r 25 -f image2 -i {result_dir}/%05d.jpg -ss {(frame_index - write_index) / fps} -i {audio_file} -shortest -y result.mp4""",
+        cwd=project_dir,
+        shell=True,
+        check=True)
 
 
 if __name__ == '__main__':
