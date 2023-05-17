@@ -49,7 +49,8 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     while True:
         ret, frame = video.read()
         if not ret:
-            break
+            video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            continue
         frame_index += 1
         print(frame_index)
         # if frame_index > 30 * 25:
