@@ -14,6 +14,7 @@ import librosa
 import numpy as np
 from audio import melspectrogram
 from typer import Typer
+from tqdm import tqdm
 
 from face_parsing import init_parser, swap_regions
 
@@ -46,13 +47,14 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     shutil.rmtree(output_dir, ignore_errors=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     image_face_bbox = {}  # {image_index: bbox}
+    progress_bar = tqdm()
     while True:
         ret, frame = video.read()
         if not ret:
             video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
         frame_index += 1
-        print(frame_index)
+        progress_bar.update(1)
         # if frame_index > 30 * 25:
         #     break
         audio_index = int(80. * (frame_index / float(25)))
