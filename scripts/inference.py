@@ -23,7 +23,10 @@ arc_face_pro_3 = None
 
 
 @app.command()
-def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
+def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest", start_frame_index: int = 0):
+    """
+    :arg: start_frame_index: 推理使用的d
+    """
     global arc_face_pro_3
     project_dir = Path(__file__).parent.parent.resolve()
     work_dir = project_dir.joinpath("inference")
@@ -48,6 +51,7 @@ def infer(video_file: Path, audio_file: Path, name: str, epoch: str = "latest"):
     output_dir.mkdir(parents=True, exist_ok=True)
     image_face_bbox = {}  # {image_index: bbox}
     progress_bar = tqdm()
+    video.set(cv2.CAP_PROP_POS_FRAMES, start_frame_index)
     while True:
         ret, frame = video.read()
         if not ret:
